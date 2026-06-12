@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { createServerSupabase } from '@/lib/supabase';
+import { createServerSupabase } from '@/lib/supabaseServer';
 import Editor from '@/components/Editor';
 
 // Server-side fetch for initial data (using cookie session for RLS authorization)
