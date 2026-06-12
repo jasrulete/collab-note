@@ -12,8 +12,9 @@ async function getNote(id: string) {
     return data;
 }
 
-export default async function NotePage({ params }: { params: { id: string } }) {
-    const note = await getNote(params.id);
+export default async function NotePage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const note = await getNote(id);
     if (!note) notFound();
 
     return <Editor noteId={note.id} initialNote={note} />;
