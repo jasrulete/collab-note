@@ -4,6 +4,7 @@ create table notes (
   title text not null default 'Untitled Note',
   content text not null default '',
   version integer not null default 1,
+  user_id uuid references auth.users(id) on delete cascade default auth.uid(),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -11,11 +12,9 @@ create table notes (
 -- Enable RLS (Row Level Security)
 alter table notes enable row level security;
 
--- Create policies for public access (adjust if you introduce auth later)
-create policy "Allow public read access" on notes for select using (true);
-create policy "Allow public insert access" on notes for insert with check (true);
-create policy "Allow public update access" on notes for update using (true);
-create policy "Allow public delete access" on notes for delete using (true);
+-- Create policies for user-specific access
+create policy "Users can perform all actions on their own notes" on notes
+  for all using (auth.uid() = user_id);
 
 -- Enable realtime publication for the notes table
 alter publication supabase_realtime add table notes;

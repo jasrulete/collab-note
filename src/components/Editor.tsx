@@ -2,31 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabase';
 import type { Note, PresenceUser, ContentBroadcast, ConflictInfo } from '@/lib/types';
 import { PRESENCE_COLORS } from '@/lib/types';
 import PresenceBar from './PresenceBar';
 import ConflictModal from './ConflictModal';
-
-// ─────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────
-
-function getOrCreateUser(): { userId: string; name: string; color: string } {
-    const stored = sessionStorage.getItem('collab-user');
-    if (stored) return JSON.parse(stored);
-
-    const adjectives = ['Swift', 'Calm', 'Bold', 'Bright', 'Keen', 'Sharp', 'Wise'];
-    const nouns = ['Fox', 'Owl', 'Bear', 'Wolf', 'Hawk', 'Deer', 'Lynx'];
-    const name = `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
-    const color = PRESENCE_COLORS[Math.floor(Math.random() * PRESENCE_COLORS.length)];
-    const userId = uuidv4();
-
-    const user = { userId, name, color };
-    sessionStorage.setItem('collab-user', JSON.stringify(user));
-    return user;
-}
 
 // ─────────────────────────────────────────
 // Editor Component
@@ -45,7 +25,7 @@ export default function Editor({ noteId, initialNote }: Props) {
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const currentVersionRef = useRef(initialNote.version);
 
-    const [me] = useState(() => getOrCreateUser());
+    const [me, setMe] = useState<{ userId: string; name: string; color: string } | null>(null);
     const [title, setTitle] = useState(initialNote.title);
     const [content, setContent] = useState(initialNote.content);
     const [presenceUsers, setPresenceUsers] = useState<PresenceUser[]>([]);
@@ -53,8 +33,25 @@ export default function Editor({ noteId, initialNote }: Props) {
     const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
     const [pendingLocal, setPendingLocal] = useState<{ content: string; title: string } | null>(null);
 
+    // Get current authenticated user details
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
+                const name = user.email ? user.email.split('@')[0] : 'Collaborator';
+                const charCodeSum = user.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const color = PRESENCE_COLORS[charCodeSum % PRESENCE_COLORS.length];
+                setMe({
+                    userId: user.id,
+                    name,
+                    color,
+                });
+            }
+        });
+    }, []);
+
     // ── Broadcast my cursor position ──────────────────
     const broadcastCursor = useCallback((pos: number, selStart: number, selEnd: number) => {
+        if (!me) return;
         channelRef.current?.send({
             type: 'broadcast',
             event: 'cursor',
@@ -72,6 +69,7 @@ export default function Editor({ noteId, initialNote }: Props) {
 
     // ── Save to DB with conflict detection ────────────
     const saveToDb = useCallback(async (newContent: string, newTitle: string) => {
+        if (!me) return;
         setSaveStatus('saving');
 
         const basedOnVersion = currentVersionRef.current;
@@ -124,7 +122,7 @@ export default function Editor({ noteId, initialNote }: Props) {
                 version: data.version,
             } satisfies ContentBroadcast,
         });
-    }, [noteId, me.userId]);
+    }, [noteId, me]);
 
     // ── Debounced save (fires 800ms after last keystroke) ──
     const debouncedSave = useCallback((newContent: string, newTitle: string) => {
@@ -137,6 +135,8 @@ export default function Editor({ noteId, initialNote }: Props) {
 
     // ── Set up Supabase Realtime channel ──────────────
     useEffect(() => {
+        if (!me) return;
+
         const channel = supabase.channel(`note-${noteId}`, {
             config: {
                 presence: { key: me.userId },
@@ -262,6 +262,14 @@ export default function Editor({ noteId, initialNote }: Props) {
         saving: 'text-yellow-400',
         error: 'text-red-400',
     }[saveStatus];
+
+    if (!me) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-400 text-sm">
+                Connecting session…
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-screen bg-gray-950">

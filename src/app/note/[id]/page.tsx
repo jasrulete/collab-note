@@ -1,13 +1,10 @@
 import { notFound } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { createServerSupabase } from '@/lib/supabase';
 import Editor from '@/components/Editor';
 
-// Server-side fetch for initial data (good for SEO + no loading flicker)
+// Server-side fetch for initial data (using cookie session for RLS authorization)
 async function getNote(id: string) {
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = await createServerSupabase();
     const { data } = await supabase.from('notes').select('*').eq('id', id).single();
     return data;
 }
