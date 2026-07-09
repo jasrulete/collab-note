@@ -25,12 +25,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Refresh session — do not remove this
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to /login
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
@@ -38,9 +36,12 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/auth")
   ) {
     const url = request.nextUrl.clone();
+    const originalPath = request.nextUrl.pathname; // e.g. /note/abc-123
     url.pathname = "/login";
+    url.searchParams.set("redirectTo", originalPath); // ← preserve the note URL
     return NextResponse.redirect(url);
   }
 
   return supabaseResponse;
 }
+    

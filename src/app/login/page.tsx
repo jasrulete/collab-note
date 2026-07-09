@@ -1,48 +1,47 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const searchParams = useSearchParams();
+  // Grab the URL they were trying to visit before being redirected to login
+  const redirectTo = searchParams.get("redirectTo") || "/";
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg('');
-    setSuccessMsg('');
+    setErrorMsg("");
+    setSuccessMsg("");
 
     if (isSignUp) {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-
-      if (error) {
-        setErrorMsg(error.message);
-      } else {
-        setSuccessMsg('Verification email sent! Please check your inbox.');
-      }
+      if (error) setErrorMsg(error.message);
+      else setSuccessMsg("Verification email sent! Please check your inbox.");
     } else {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
       if (error) {
         setErrorMsg(error.message);
       } else {
-        router.push('/');
+        router.push(redirectTo); // ← redirect back to the note
         router.refresh();
       }
     }
@@ -52,7 +51,6 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-950 px-4 py-12">
       <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
-        {/* Glow decoration */}
         <div className="absolute -top-20 -left-20 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -61,7 +59,7 @@ export default function LoginPage() {
             CollabNotes
           </h1>
           <p className="text-gray-400 text-sm mt-2">
-            {isSignUp ? 'Create a new account' : 'Sign in to access your notes'}
+            {isSignUp ? "Create a new account" : "Sign in to access your notes"}
           </p>
         </div>
 
@@ -110,20 +108,20 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all disabled:opacity-50 cursor-pointer"
           >
-            {loading ? 'Please wait…' : isSignUp ? 'Sign Up' : 'Sign In'}
+            {loading ? "Please wait…" : isSignUp ? "Sign Up" : "Sign In"}
           </button>
         </form>
 
         <div className="mt-6 text-center text-xs text-gray-400 relative z-10">
           {isSignUp ? (
             <p>
-              Already have an account?{' '}
+              Already have an account?{" "}
               <button
                 type="button"
                 onClick={() => {
                   setIsSignUp(false);
-                  setErrorMsg('');
-                  setSuccessMsg('');
+                  setErrorMsg("");
+                  setSuccessMsg("");
                 }}
                 className="text-blue-400 hover:text-blue-300 font-semibold hover:underline"
               >
@@ -132,13 +130,13 @@ export default function LoginPage() {
             </p>
           ) : (
             <p>
-              Don't have an account?{' '}
+              Don't have an account?{" "}
               <button
                 type="button"
                 onClick={() => {
                   setIsSignUp(true);
-                  setErrorMsg('');
-                  setSuccessMsg('');
+                  setErrorMsg("");
+                  setSuccessMsg("");
                 }}
                 className="text-blue-400 hover:text-blue-300 font-semibold hover:underline"
               >
@@ -149,5 +147,13 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
