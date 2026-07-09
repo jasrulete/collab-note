@@ -35,13 +35,23 @@ export default function HomePage() {
 
   async function createNote() {
     setCreating(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('You must be logged in to create a note.');
+      setCreating(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('notes')
-      .insert({ title: 'Untitled Note', content: '' })
+      .insert({ title: 'Untitled Note', content: '', user_id: user.id })
       .select()
       .single();
 
-    if (!error && data) {
+    if (error) {
+      console.error('Error creating note:', error);
+      alert(`Failed to create note: ${error.message}`);
+    } else if (data) {
       router.push(`/note/${data.id}`);
     }
     setCreating(false);
